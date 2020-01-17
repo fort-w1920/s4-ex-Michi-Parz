@@ -139,6 +139,9 @@ lapply(create_animals_list, set_classes)
 
 # Methode-----------------------------------------
 
+# Nicht DRY genug!
+# Die Funktion außerhalb definieren und unterschiede übergeben!
+
 setMethod("show", "prey", function(object) {
   gender <- ifelse(object@female, "(f)", "(m)")
 
@@ -214,11 +217,11 @@ str(mouse(weight = 100))
 
 
 
-# Meet-----
+# Meet--------------------------------------------------------------------------
 
 setGeneric(
   "meet",
-  function(animal1, animal2,...) {
+  function(animal1, animal2, ...) {
     standardGeneric("meet")
   }
 )
@@ -226,23 +229,117 @@ setGeneric(
 
 setMethod("meet",
   signature = c(animal1 = "animal", animal2 = "animal"),
-  function(animal1, animal2,text = "242") {
+  function(animal1, animal2, text = "") {
     message(
       is(animal1)[[1]], " '", animal1@name, "' & ", is(animal2)[[1]],
-      " '", animal2@name, "' ", text
+      " '", animal2@name, "' ", message
     )
-    
   }
 )
+
+
+meet_list <- list(
+  list(
+    "contains1" = "prey", "contains2" = "prey",
+    "events" = c(
+      "ignore each other", "sniff each others' butts",
+      "make sweet, sweet love"
+    ),
+    "prob_same_sex" = c(1 / 2, 1 / 2, 0),
+    "prob_different_sex" = c(1 / 4, 1 / 4, 1 / 2)
+  ),
+  list(
+    "contains1" = "predator", "contains2" = "predator",
+    "events" = c(
+      "ignore each other", "sniff each others' butts",
+      "make sweet, sweet love", "fight for territory"
+    ),
+    "prob_same_sex" = c(1 / 3, 1 / 3, 1 / 3, 0),
+    "prob_different_sex" = c(0, 0, 1 / 2, 1 / 2)
+  ),
+  list(
+    "contains1" = "prey", "contains2" = "predator",
+    "events" = c(
+      "kills and eats", "escapes from",
+      "ignore each other", "sniff each others' butts"
+    ),
+    "prob_same_sex" = NULL,
+    "prob_different_sex" = NULL
+  )
+)
+
+# if if if if if if, wegbekommen
+
+
+create_situation <- function(animal1, animal2, contains1, contains2, 
+                                    events, prob_same_sex, prob_different_sex) {
+  probabilites <- prob_same_sex
+  if (animal1@female != animal2@female & is(animal1)[[1]] == is(animal2)[[1]]) {
+    probabilites <- prob_different_sex
+  }
+  
+  if (contains1 != contains2) {
+    
+    probabilites <- c(0, 0, 1/2, 1/2)
+    
+    if (prey@weight >= 0.05 * predator@weight &
+      prey@weight <= 0.70 * predator@weight) {
+      prob_eat <- min(1, max(0,0.6 + predator@seek - prey@hide))
+      
+      probabilites <- c(prob_eat, 1 - prob_eat, 0, 0)
+    }
+    
+  }
+  
+  sample(events, size = 1, prob = probabilites)
+}
+
+
+
+
+
+for (i in seq_len(length(meet_list))) {
+
+}
+
+set_method_meet <- function(object, ...) UseMethod("set_classes")
+set_method_meet.default <- function(contains1, contains2, events,
+                            prob_same_sex, prob_different_sex) {
+  setMethod("meet",
+    signature = c(animal1 = contains1, animal2 = contains2),
+    function(animal1, animal2) {
+      message <- create_situation(
+        animal1, animal2, contains1, contains2, events,
+        prob_same_sex, prob_different_sex
+      )
+
+      callNextMethod(animal1, animal2, message)
+    }
+  )
+}
+
+set_method_meet.list <- function(list){
+  set_method_meet.default(list$contains1, list$contains2, list$events, 
+                          list$prob_same_sex, list$prob_different_sex)
+}
+
 
 setMethod("meet",
   signature = c(animal1 = "prey", animal2 = "prey"),
   function(animal1, animal2) {
-    event <- c("ignore each other", "sniff each others' butts", 
-               "make sweet, sweet love")
-    text <- sample(event, size = 1, prob = c(1/4, 1/4, 1/2))
+    event <- c(
+      "ignore each other", "sniff each others' butts",
+      "make sweet, sweet love"
+    )
     
-    callNextMethod(animal1,animal2, text)
+    probabilites <- c(1 / 2, 1 / 2, 0)
+    if (animal1@female != animal2@female & is(animal1)[[1]] == is(animal2)[[1]]) {
+      probabilites <- c(1 / 4, 1 / 4, 1 / 2)
+    }
+
+    text <- sample(event, size = 1, prob = probabilites)
+
+    callNextMethod(animal1, animal2, text)
   }
 )
 
